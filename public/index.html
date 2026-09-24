@@ -48,7 +48,10 @@
       sending: "正在核验…",
       done: "验证已完成，正在返回 Telegram…",
       invalid: "请从 tego 聊天中的验证按钮打开此页面。",
-      failed: "验证失败，请重试。",
+      failed: "验证码未通过，请重新完成验证。",
+      expired: "验证链接无效或已过期，请在机器人聊天中重新获取验证按钮。",
+      unavailable: "验证服务暂时不可用，请稍后重试。",
+      network: "请求失败，请检查网络后重试。",
     } : {
       title: "Verify to continue",
       description: "Complete this check before sending a private message to tego.",
@@ -59,7 +62,10 @@
       sending: "Checking your response…",
       done: "Verified. Returning to Telegram…",
       invalid: "Open this page from the verification button in the tego chat.",
-      failed: "Verification failed. Please try again.",
+      failed: "The CAPTCHA was not accepted. Please complete it again.",
+      expired: "This verification link is invalid or expired. Request a new button in the bot chat.",
+      unavailable: "The verification service is unavailable. Please try again later.",
+      network: "The request failed. Check your connection and try again.",
     };
     for (const id of ["title", "description", "submit", "foot"]) {
       document.getElementById(id).textContent = copy[id];
@@ -145,6 +151,7 @@
       if (!responseToken || !telegram) return;
       button.disabled = true;
       setStatus(copy.sending);
+      let failureCode = "network";
       try {
         const response = await fetch("/api/verify", {
           method: "POST",
@@ -155,13 +162,18 @@
           }),
         });
         const result = await response.json();
-        if (!response.ok || !result.proof) throw new Error("verification rejected");
+        if (!response.ok || !result.proof) {
+          failureCode = result.code || "captcha_rejected";
+          throw new Error("verification rejected");
+        }
         responseToken = "";
         setStatus(copy.done);
         telegram.sendData(result.proof);
       } catch {
         responseToken = "";
-        setStatus(copy.failed);
+        setStatus(failureCode === "invalid_ticket" ? copy.expired
+          : failureCode === "provider_unavailable" ? copy.unavailable
+          : failureCode === "network" ? copy.network : copy.failed);
         resetWidget();
       }
     });

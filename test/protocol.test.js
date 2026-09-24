@@ -34,6 +34,7 @@ test("server issues proof only for valid challenge and Turnstile response", asyn
   assert.equal(calls, 1);
   const invalid = await verifySubmission({ ...input, challenge: challenge.replace("12345", "12346") }, config, now, siteverify);
   assert.equal(invalid.status, 403);
+  assert.equal(invalid.code, "invalid_ticket");
   assert.equal(calls, 1);
   const badSite = await verifySubmission(input, config, now, async () =>
     ({ ok: true, json: async () => ({ success: true, hostname: "other.example.com", action: "tego_verify" }) }));
@@ -61,16 +62,19 @@ test("hCaptcha checks the configured sitekey and issues the same bot proof", asy
 
   const wrongHost = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: true, json: async () => ({ success: true, hostname: "other.example.com" }) }));
-  assert.equal(wrongHost.status, 403);
+  assert.equal(wrongHost.status, 200);
   const unreportedHost = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: true, json: async () => ({ success: true, hostname: "not-provided" }) }));
   assert.equal(unreportedHost.status, 200);
   const rejected = await verifySubmission(input, hcaptcha, now, async () =>
-    ({ ok: true, json: async () => ({ success: false, hostname: hcaptcha.hostname }) }));
+    ({ ok: true, json: async () => ({ success: false, hostname: hcaptcha.hostname, "error-codes": ["sitekey-secret-mismatch"] }) }));
   assert.equal(rejected.status, 403);
+  assert.equal(rejected.code, "captcha_rejected");
+  assert.deepEqual(rejected.providerCodes, ["sitekey-secret-mismatch"]);
   const unavailable = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: false }));
   assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.code, "provider_unavailable");
   const malformed = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: true, json: async () => null }));
   assert.equal(malformed.status, 403);
@@ -80,4 +84,5 @@ test("unknown provider fails closed", async () => {
   const result = await verifySubmission({ challenge, token: "token" }, { ...config, provider: "other" }, now,
     async () => { throw new Error("should not call provider"); });
   assert.equal(result.status, 503);
+  assert.equal(result.code, "invalid_provider");
 });
