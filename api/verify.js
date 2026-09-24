@@ -1,33 +1,30 @@
-import { parseTicket, readSigningKey, signTicket, verifyTelegramInitData } from "../lib/protocol.js";
+import { parseTicket, readSigningKey, signTicket } from "../lib/protocol.js";
 
 const siteverifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 function configuration() {
-  const botID = process.env.TELEGRAM_BOT_ID;
   const siteKey = process.env.TURNSTILE_SITE_KEY;
   const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
   const hostname = process.env.VERIFY_HOSTNAME;
-  if (!/^[1-9][0-9]*$/.test(botID || "") || !siteKey || !turnstileSecret ||
+  if (!siteKey || !turnstileSecret ||
       !hostname || hostname.includes("/") || hostname.includes(":")) {
     return null;
   }
   try {
-    return { botID, siteKey, turnstileSecret, hostname, key: readSigningKey(process.env.VERIFY_SIGNING_KEY) };
+    return { siteKey, turnstileSecret, hostname, key: readSigningKey(process.env.VERIFY_SIGNING_KEY) };
   } catch {
     return null;
   }
 }
 
-export async function verifySubmission(input, config, now, fetchSiteverify = fetch,
-                                       checkTelegram = verifyTelegramInitData) {
-  if (!input || typeof input.challenge !== "string" || typeof input.initData !== "string" ||
+export async function verifySubmission(input, config, now, fetchSiteverify = fetch) {
+  if (!input || typeof input.challenge !== "string" ||
       typeof input.token !== "string" || input.challenge.length > 256 ||
-      input.initData.length > 4096 || input.token.length < 1 || input.token.length > 2048) {
+      input.token.length < 1 || input.token.length > 2048) {
     return { status: 400, error: "Invalid request" };
   }
   const challenge = parseTicket(input.challenge, "c", config.key, now);
-  const telegram = checkTelegram(input.initData, config.botID, now);
-  if (!challenge || !telegram || telegram.userID !== challenge.userID) {
+  if (!challenge) {
     return { status: 403, error: "Verification link is invalid or expired" };
   }
   let result;
