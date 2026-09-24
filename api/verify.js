@@ -1,41 +1,31 @@
-import { parseTicket, readSigningKey, signTicket } from "../lib/protocol.js";
+import { readConfiguration } from "../lib/config.js";
+import { parseTicket, signTicket } from "../lib/protocol.js";
 
-const siteverifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-
-function configuration() {
-  const siteKey = process.env.TURNSTILE_SITE_KEY;
-  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-  const hostname = process.env.VERIFY_HOSTNAME;
-  if (!siteKey || !turnstileSecret ||
-      !hostname || hostname.includes("/") || hostname.includes(":")) {
-    return null;
-  }
-  try {
-    return { siteKey, turnstileSecret, hostname, key: readSigningKey(process.env.VERIFY_SIGNING_KEY) };
-  } catch {
-    return null;
-  }
-}
+const siteverifyURLs = {
+  turnstile: "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+  hcaptcha: "https://api.hcaptcha.com/siteverify",
+};
 
 export async function verifySubmission(input, config, now, fetchSiteverify = fetch) {
   if (!input || typeof input.challenge !== "string" ||
       typeof input.token !== "string" || input.challenge.length > 256 ||
-      input.token.length < 1 || input.token.length > 2048) {
+      input.token.length < 1 || input.token.length > 4096) {
     return { status: 400, error: "Invalid request" };
   }
   const challenge = parseTicket(input.challenge, "c", config.key, now);
   if (!challenge) {
     return { status: 403, error: "Verification link is invalid or expired" };
   }
+  const siteverifyURL = siteverifyURLs[config.provider];
+  if (!siteverifyURL) return { status: 503, error: "Verification is not configured" };
   let result;
   try {
+    const fields = { secret: config.secret, response: input.token };
+    if (config.provider === "hcaptcha") fields.sitekey = config.siteKey;
     const response = await fetchSiteverify(siteverifyURL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        secret: config.turnstileSecret,
-        response: input.token,
-      }),
+      body: new URLSearchParams(fields),
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) return { status: 503, error: "Verification service unavailable" };
@@ -43,8 +33,8 @@ export async function verifySubmission(input, config, now, fetchSiteverify = fet
   } catch {
     return { status: 503, error: "Verification service unavailable" };
   }
-  if (result.success !== true || result.hostname !== config.hostname ||
-      result.action !== "tego_verify") {
+  if (result?.success !== true || result.hostname !== config.hostname ||
+      (config.provider === "turnstile" && result.action !== "tego_verify")) {
     return { status: 403, error: "Challenge failed" };
   }
   return {
@@ -54,7 +44,7 @@ export async function verifySubmission(input, config, now, fetchSiteverify = fet
 }
 
 export async function POST(request) {
-  const config = configuration();
+  const config = readConfiguration();
   if (!config) {
     return Response.json({ error: "Verification is not configured" }, { status: 503 });
   }
