@@ -1,9 +1,11 @@
+import { readConfiguration } from "../lib/config.js";
+
 export function GET() {
-  const siteKey = process.env.TURNSTILE_SITE_KEY;
-  if (!siteKey) {
+  const config = readConfiguration();
+  if (!config) {
     return Response.json({ error: "Verification is not configured" }, { status: 503 });
   }
-  return Response.json({ siteKey }, {
+  return Response.json({ provider: config.provider, siteKey: config.siteKey }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

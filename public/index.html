@@ -69,7 +69,7 @@
     const button = document.getElementById("submit");
     const status = document.getElementById("status");
     let responseToken = "";
-    let widgetID;
+    let resetWidget = () => {};
     const setStatus = (text) => { status.textContent = text; };
 
     async function begin() {
@@ -85,33 +85,56 @@
         if (!response.ok) throw new Error("configuration unavailable");
         const config = await response.json();
         if (!config.siteKey) throw new Error("site key unavailable");
-        const script = document.createElement("script");
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.onload = () => {
-          widgetID = turnstile.render("#widget", {
-            sitekey: config.siteKey,
-            action: "tego_verify",
-            theme: "auto",
-            callback(token) {
-              responseToken = token;
-              button.disabled = false;
-              setStatus("");
-            },
-            "expired-callback"() {
-              responseToken = "";
-              button.disabled = true;
-              setStatus(copy.ready);
-            },
-            "error-callback"() {
-              responseToken = "";
-              button.disabled = true;
-              setStatus(copy.failed);
-            },
-          });
+        const solved = (token) => {
+          responseToken = token;
+          button.disabled = false;
+          setStatus("");
+        };
+        const expired = () => {
+          responseToken = "";
+          button.disabled = true;
           setStatus(copy.ready);
         };
-        script.onerror = () => setStatus(copy.failed);
+        const failed = () => {
+          responseToken = "";
+          button.disabled = true;
+          setStatus(copy.failed);
+        };
+        const renderWidget = (api, options) => {
+          try {
+            const widgetID = api.render(config.provider === "turnstile" ? "#widget" : "widget", {
+              sitekey: config.siteKey,
+              callback: solved,
+              "expired-callback": expired,
+              "error-callback": failed,
+              ...options,
+            });
+            resetWidget = () => api.reset(widgetID);
+            setStatus(copy.ready);
+          } catch {
+            failed();
+          }
+        };
+        const script = document.createElement("script");
+        script.async = true;
+        script.onerror = failed;
+        if (config.provider === "turnstile") {
+          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+          script.onload = () => renderWidget(window.turnstile, {
+            action: "tego_verify",
+            theme: "auto",
+          });
+        } else if (config.provider === "hcaptcha") {
+          window.tegoHCaptchaReady = () => {
+            renderWidget(window.hcaptcha, {
+              theme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+            });
+            delete window.tegoHCaptchaReady;
+          };
+          script.src = "https://js.hcaptcha.com/1/api.js?onload=tegoHCaptchaReady&render=explicit&recaptchacompat=off";
+        } else {
+          throw new Error("unsupported verification provider");
+        }
         document.head.append(script);
       } catch {
         setStatus(copy.failed);
@@ -139,7 +162,7 @@
       } catch {
         responseToken = "";
         setStatus(copy.failed);
-        if (widgetID !== undefined && window.turnstile) turnstile.reset(widgetID);
+        resetWidget();
       }
     });
     begin();
