@@ -56,7 +56,7 @@ for (const provider of ["turnstile", "hcaptcha"]) {
         assert.equal(url, "/api/verify");
         requestBody = JSON.parse(options.body);
         verifyCalls++;
-        if (verifyCalls === 1) return { ok: false, json: async () => ({ error: "retry" }) };
+        if (verifyCalls === 1) return { ok: false, json: async () => ({ error: "Verification link is invalid or expired", code: "invalid_ticket" }) };
         return { ok: true, json: async () => ({ proof: "signed-proof" }) };
       },
     };
@@ -70,6 +70,7 @@ for (const provider of ["turnstile", "hcaptcha"]) {
     assert.equal(requestBody.challenge, "signed-challenge");
     assert.equal(requestBody.token, "captcha-token");
     assert.equal(resetCount, 1);
+    assert.match(elements.status.textContent, /expired/);
     assert.equal(sentProof, undefined);
     widgetOptions.callback("fresh-token");
     await elements.submit.click();
