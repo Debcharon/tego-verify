@@ -1,0 +1,8 @@
+{
+  "name": "tego-verify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
