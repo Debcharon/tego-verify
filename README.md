@@ -1,19 +1,17 @@
 # tego-verify
 
-An optional Telegram Mini App for [tego](https://github.com/Debcharon/tego). It runs as a static page and two Vercel Node.js Functions. The browser displays Cloudflare Turnstile; the server validates the bot's signed challenge and the Turnstile token, then gives the bot a short-lived signed proof. The bot remains on long polling and needs no public HTTP endpoint.
+An optional Telegram Mini App for [tego](https://github.com/Debcharon/tego). It runs as a static page and two Vercel Node.js Functions. The browser displays either Cloudflare Turnstile or hCaptcha; the server verifies that provider's token and the bot's signed challenge, then returns a short-lived signed proof. The bot remains on long polling and needs no public HTTP endpoint.
 
-## Deploy
+## Configure
 
-1. Create a Cloudflare Turnstile widget for the exact Vercel production hostname. Use a widget mode that works in Telegram's WebView.
-2. Import this repository into Vercel. Set these environment variables for Production:
-   - `TURNSTILE_SITE_KEY`: public widget site key.
-   - `TURNSTILE_SECRET_KEY`: private server-side secret.
-   - `VERIFY_HOSTNAME`: exact production hostname, without scheme or path.
-   - `VERIFY_SIGNING_KEY`: 64 hexadecimal characters from `openssl rand -hex 32`.
-3. Deploy and open the production URL. Then set `VERIFY_URL` to that HTTPS URL and `VERIFY_SIGNING_KEY` to the same value in the tego bot environment. Restart the bot.
+1. Choose one CAPTCHA provider for this deployment:
+   - **Turnstile** (existing default): set `CAPTCHA_PROVIDER=turnstile`, `TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY`. If `CAPTCHA_PROVIDER` is absent, Turnstile is selected.
+   - **hCaptcha**: set `CAPTCHA_PROVIDER=hcaptcha`, `HCAPTCHA_SITE_KEY`, and `HCAPTCHA_SECRET_KEY`. Create the sitekey for the production domain. The inactive provider's keys are ignored.
+2. Set `VERIFY_HOSTNAME` to the exact production hostname, without scheme or path. Set `VERIFY_SIGNING_KEY` to 64 hexadecimal characters from `openssl rand -hex 32`. Use the same signing key in the tego bot. Keep both the signing key and the selected provider's secret private.
+3. Deploy on Vercel and open the production URL. Set the bot's `VERIFY_URL` to that HTTPS URL and `VERIFY_SIGNING_KEY` to the matching value. Restart the bot. Switching CAPTCHA providers only changes this web service's configuration; the bot's verification protocol and database stay the same.
 
-The bot token and bot ID are **not** needed in Vercel. Keep `VERIFY_SIGNING_KEY` and `TURNSTILE_SECRET_KEY` private. Vercel Preview URLs require their own matching Turnstile hostname/configuration; use the Production URL for the bot.
+Copy `.env.example` for the variable names. Vercel environment settings provide the runtime variables; the page does not load `.env` directly. Vercel Preview URLs need their own matching hostname and CAPTCHA sitekey configuration. The bot token and bot ID are not needed in Vercel.
 
-The bot sends a ten-minute challenge tied to a user and a random nonce. The API checks its HMAC and Turnstile's one-time token, action, and hostname. Keyboard-button Mini Apps do not receive Telegram initData, so the page cannot authenticate the Telegram user directly. Instead, the bot checks that the proof's user ID matches the sender of Telegram's web_app_data service message and atomically consumes the matching local challenge. The resulting proof expires after five minutes and is accepted once by the bot against its local SQLite challenge. A successful verification does not forward the user's earlier message; the user sends it again. If verification is not configured in the bot, it stays disabled.
+The bot sends a ten-minute challenge tied to a user and a random nonce. The API verifies its HMAC and the selected provider's one-time token. Turnstile responses must match the configured hostname and `tego_verify` action; hCaptcha responses must match the configured hostname, and the API submits the expected sitekey to hCaptcha's siteverify endpoint. Keyboard-button Mini Apps do not receive Telegram initData, so the page cannot authenticate the Telegram user directly. Instead, the bot checks that the proof's user ID matches the sender of Telegram's web_app_data service message and atomically consumes the matching local challenge. The proof expires after five minutes. A successful verification does not forward the user's earlier message; the user sends it again. If the selected provider is misconfigured or unavailable, verification fails closed.
 
-Run tests with `npm test` (Node.js 20 or newer). No npm dependencies are required.
+Run `npm test` to check provider selection, token verification, signed proofs, and the Mini App's widget paths. Live CAPTCHA credentials and a Telegram WebView are still needed for an end-to-end production check.
