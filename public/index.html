@@ -73,7 +73,7 @@
     const setStatus = (text) => { status.textContent = text; };
 
     async function begin() {
-      if (!telegram || !telegram.initData || !challenge || challenge.length > 256) {
+      if (!telegram || !challenge || challenge.length > 256) {
         setStatus(copy.invalid);
         return;
       }
@@ -128,7 +128,6 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             challenge,
-            initData: telegram.initData,
             token: responseToken,
           }),
         });
