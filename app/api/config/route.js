@@ -1,4 +1,7 @@
-import { readConfiguration } from "../lib/config.js";
+import { readConfiguration } from "../../../lib/config.js";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export function GET() {
   const config = readConfiguration();
