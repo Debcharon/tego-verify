@@ -62,6 +62,9 @@ test("hCaptcha checks the configured sitekey and issues the same bot proof", asy
   const wrongHost = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: true, json: async () => ({ success: true, hostname: "other.example.com" }) }));
   assert.equal(wrongHost.status, 403);
+  const unreportedHost = await verifySubmission(input, hcaptcha, now, async () =>
+    ({ ok: true, json: async () => ({ success: true, hostname: "not-provided" }) }));
+  assert.equal(unreportedHost.status, 200);
   const rejected = await verifySubmission(input, hcaptcha, now, async () =>
     ({ ok: true, json: async () => ({ success: false, hostname: hcaptcha.hostname }) }));
   assert.equal(rejected.status, 403);

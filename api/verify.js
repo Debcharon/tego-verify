@@ -33,7 +33,9 @@ export async function verifySubmission(input, config, now, fetchSiteverify = fet
   } catch {
     return { status: 503, error: "Verification service unavailable" };
   }
-  if (result?.success !== true || result.hostname !== config.hostname ||
+  const hostnameMatches = result?.hostname === config.hostname ||
+    (config.provider === "hcaptcha" && result?.hostname === "not-provided");
+  if (result?.success !== true || !hostnameMatches ||
       (config.provider === "turnstile" && result.action !== "tego_verify")) {
     return { status: 403, error: "Challenge failed" };
   }
