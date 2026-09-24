@@ -1,6 +1,14 @@
 # tego-verify
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDebcharon%2Ftego-verify)
+
 An optional Telegram Mini App for [tego](https://github.com/Debcharon/tego). It runs as a Next.js App Router page and two Node.js Route Handlers on Vercel. The frameless browser page displays either Cloudflare Turnstile or hCaptcha; the server verifies that provider's token and the bot's signed challenge, then returns a short-lived signed proof. The bot remains on long polling and needs no public HTTP endpoint.
+
+## Deploy
+
+The button above clones this repository into a **new** Vercel project; it does not redeploy an existing project. After creation, set the environment variables below for the chosen CAPTCHA provider and production hostname, then deploy again so the runtime can use them. Existing Git-connected projects deploy updates when their production branch is updated.
 
 ## Configure
 
@@ -8,7 +16,7 @@ An optional Telegram Mini App for [tego](https://github.com/Debcharon/tego). It 
    - **Turnstile** (existing default): set `CAPTCHA_PROVIDER=turnstile`, `TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY`. If `CAPTCHA_PROVIDER` is absent, Turnstile is selected.
    - **hCaptcha**: set `CAPTCHA_PROVIDER=hcaptcha`, `HCAPTCHA_SITE_KEY`, and `HCAPTCHA_SECRET_KEY`. Create the sitekey for the production domain. The inactive provider's keys are ignored.
 2. Set `VERIFY_HOSTNAME` to the exact production hostname, without scheme or path. Set `VERIFY_SIGNING_KEY` to 64 hexadecimal characters from `openssl rand -hex 32`. Use the same signing key in the tego bot. Keep both the signing key and the selected provider's secret private.
-3. Deploy on Vercel and open the production URL. Set the bot's `VERIFY_URL` to that HTTPS URL and `VERIFY_SIGNING_KEY` to the matching value. Restart the bot. Switching CAPTCHA providers only changes this web service's configuration; the bot's verification protocol and database stay the same.
+3. Once the Vercel project exists, configure its variables and deploy or redeploy it. Set the bot's `VERIFY_URL` to the production HTTPS URL and `VERIFY_SIGNING_KEY` to the matching value. Restart the bot after changing its configuration. Switching CAPTCHA providers only changes this web service's configuration; the bot's verification protocol and database stay the same.
 
 Copy `.env.example` for the variable names. Vercel environment settings provide the runtime variables; only the selected provider and public sitekey are returned by `/api/config`. The secret and signing key remain server-side. For local development, put values in an ignored `.env.local` file. Vercel Preview URLs need their own matching hostname and CAPTCHA sitekey configuration. The bot token and bot ID are not needed in Vercel.
 
