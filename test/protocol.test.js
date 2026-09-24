@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseTicket, readSigningKey, signTicket } from "../lib/protocol.js";
-import { verifySubmission } from "../api/verify.js";
+import { verifySubmission } from "../lib/verify.js";
 
 const key = readSigningKey("00".repeat(32));
 const nonce = Buffer.alloc(16, 1).toString("base64url");
