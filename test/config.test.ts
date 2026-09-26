@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readConfiguration } from "../lib/config.js";
+import { readConfiguration } from "../lib/config.ts";
 
 const base = {
   TURNSTILE_SITE_KEY: "turnstile-site",
@@ -11,6 +11,7 @@ const base = {
 
 test("Turnstile remains the default provider", () => {
   const config = readConfiguration(base);
+  assert.ok(config);
   assert.equal(config.provider, "turnstile");
   assert.equal(config.siteKey, "turnstile-site");
   assert.equal(config.secret, "turnstile-secret");
@@ -23,6 +24,7 @@ test("hCaptcha selects only its own credentials", () => {
     HCAPTCHA_SITE_KEY: "hcaptcha-site",
     HCAPTCHA_SECRET_KEY: "hcaptcha-secret",
   });
+  assert.ok(config);
   assert.equal(config.provider, "hcaptcha");
   assert.equal(config.siteKey, "hcaptcha-site");
   assert.equal(config.secret, "hcaptcha-secret");

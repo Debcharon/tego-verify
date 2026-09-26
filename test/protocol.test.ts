@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTicket, readSigningKey, signTicket } from "../lib/protocol.js";
-import { verifySubmission } from "../lib/verify.js";
+import { parseTicket, readSigningKey, signTicket } from "../lib/protocol.ts";
+import { verifySubmission } from "../lib/verify.ts";
+import type { Configuration } from "../lib/config";
 
 const key = readSigningKey("00".repeat(32));
 const nonce = Buffer.alloc(16, 1).toString("base64url");
 const now = 2000000000;
 const challenge = signTicket("c", "12345", now + 600, nonce, key);
-const config = { provider: "turnstile", siteKey: "turnstile-site", hostname: "verify.example.com", secret: "secret", key };
+const config: Configuration = { provider: "turnstile", siteKey: "turnstile-site", hostname: "verify.example.com", secret: "secret", key };
 
 test("tickets enforce type, expiry, MAC, and canonical fields", () => {
   assert.deepEqual(parseTicket(challenge, "c", key, now), { userID: "12345", expiresAt: now + 600, nonce });
@@ -20,7 +21,7 @@ test("tickets enforce type, expiry, MAC, and canonical fields", () => {
 test("server issues proof only for valid challenge and Turnstile response", async () => {
   const input = { challenge, token: "turnstile-token" };
   let calls = 0;
-  const siteverify = async (url, options) => {
+  const siteverify = async (url: string, options: { body: URLSearchParams }) => {
     assert.equal(url, "https://challenges.cloudflare.com/turnstile/v0/siteverify");
     assert.equal(options.body.get("secret"), "secret");
     assert.equal(options.body.get("response"), input.token);
@@ -43,9 +44,9 @@ test("server issues proof only for valid challenge and Turnstile response", asyn
 
 test("hCaptcha checks the configured sitekey and issues the same bot proof", async () => {
   const input = { challenge, token: "hcaptcha-token" };
-  const hcaptcha = { ...config, provider: "hcaptcha", siteKey: "hcaptcha-site" };
+  const hcaptcha: Configuration = { ...config, provider: "hcaptcha", siteKey: "hcaptcha-site" };
   let calls = 0;
-  const siteverify = async (url, options) => {
+  const siteverify = async (url: string, options: { method: string; headers: Record<string, string>; body: URLSearchParams }) => {
     calls++;
     assert.equal(url, "https://api.hcaptcha.com/siteverify");
     assert.equal(options.method, "POST");
@@ -81,7 +82,7 @@ test("hCaptcha checks the configured sitekey and issues the same bot proof", asy
 });
 
 test("unknown provider fails closed", async () => {
-  const result = await verifySubmission({ challenge, token: "token" }, { ...config, provider: "other" }, now,
+  const result = await verifySubmission({ challenge, token: "token" }, { ...config, provider: "other" } as unknown as Configuration, now,
     async () => { throw new Error("should not call provider"); });
   assert.equal(result.status, 503);
   assert.equal(result.code, "invalid_provider");

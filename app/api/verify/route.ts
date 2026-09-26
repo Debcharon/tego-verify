@@ -1,10 +1,10 @@
-import { readConfiguration } from "../../../lib/config.js";
-import { verifySubmission } from "../../../lib/verify.js";
+import { readConfiguration } from "../../../lib/config";
+import { verifySubmission } from "../../../lib/verify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request) {
+export async function POST(request: Request) {
   const config = readConfiguration();
   if (!config) {
     return Response.json({ error: "Verification is not configured" }, { status: 503 });

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GET } from "../app/api/config/route.js";
-import { POST } from "../app/api/verify/route.js";
+import { GET } from "../app/api/config/route.ts";
+import { POST } from "../app/api/verify/route.ts";
 
 const names = [
   "CAPTCHA_PROVIDER", "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY",

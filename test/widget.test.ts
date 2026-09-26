@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderCaptcha } from "../lib/captcha-widget.js";
+import { renderCaptcha } from "../lib/captcha-widget.ts";
+import type { CaptchaAPI } from "../lib/captcha-widget";
 
-for (const provider of ["turnstile", "hcaptcha"]) {
+ for (const provider of ["turnstile", "hcaptcha"] as const) {
   test(provider + " widget keeps verification callbacks and provider options", () => {
-    const calls = [];
-    const container = { replaceChildren() { calls.push("cleared"); } };
-    const api = {
+    const calls: string[] = [];
+    const container = { replaceChildren() { calls.push("cleared"); } } as HTMLElement;
+    const api: CaptchaAPI = {
       render(target, options) {
         assert.equal(target, container);
         assert.equal(options.sitekey, "public-key");
