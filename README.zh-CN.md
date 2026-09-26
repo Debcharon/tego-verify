@@ -43,10 +43,19 @@ Vercel 部署获得公开地址后，在机器人运行环境中设置以下变�
 
 ## 验证流程
 
-机器人会发出与用户及随机 nonce 绑定、有效期十分钟的挑战。API 验证挑战的 HMAC 和所选服务的一次性 CAPTCHA token。Turnstile 响应必须匹配配置的域名及 `tego_verify` action。对于 hCaptcha，API 会在 siteverify 请求中提交预期的 sitekey；hCaptcha 返回的 hostname 是诊断信息，不作为身份认证依据。
+1. 机器人签发绑定用户和随机 nonce 的挑战（有效期 10 分钟）。
+2. 网页 API 验证挑战的 HMAC 和 CAPTCHA，成功后返回签名凭证（有效期 5 分钟）。Turnstile 校验域名及 `tego_verify` action；hCaptcha 提交预期 sitekey，其返回的 hostname 仅用于诊断。
+3. 机器人核对凭证中的用户 ID 与 `web_app_data` 发送者，并原子消费对应挑战。用户随后重新发送原消息。
 
-通过键盘按钮打开的 Mini App 不会收到 Telegram initData，因此页面无法直接验证 Telegram 用户身份；机器人会检查签名凭证中的用户 ID 是否与 Telegram `web_app_data` 服务消息的发送者一致，并在本地原子地消费对应挑战。签名凭证有效期为五分钟。验证成功不会自动转发用户之前的消息，用户需要重新发送。所选 CAPTCHA 服务配置不完整或不可用时，验证会拒绝通过。
+键盘按钮 Mini App 没有 Telegram initData，页面无法直接识别发送者。配置缺失或验证服务不可用时，验证会被拒绝。
 
 ## 本地开发
 
-应用及测试使用 TypeScript。本地运行：先执行 `pnpm install`，然后运行 `pnpm dev`；`pnpm typecheck` 检查类型，`pnpm test` 检查协议、Route Handler 和 CAPTCHA 组件，`pnpm build` 构建生产版本。根页面会静态预渲染，`vercel.json` 为现有 Vercel 项目指定 Next.js 框架；`/api/config` 和 `/api/verify` 仍是动态 Node.js 接口。完整的生产端到端验证还需要真实的 CAPTCHA 凭据和 Telegram WebView。
+安装依赖并启动 TypeScript 应用：
+
+```sh
+pnpm install
+pnpm dev
+```
+
+用 `pnpm typecheck`、`pnpm test` 和 `pnpm build` 检查改动。完整验证还需要真实的 CAPTCHA 凭据和 Telegram WebView。

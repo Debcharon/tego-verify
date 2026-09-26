@@ -43,10 +43,19 @@ For local development, copy the names from `.env.example` into an ignored `.env.
 
 ## How verification works
 
-The bot sends a ten-minute challenge tied to a user and a random nonce. The API verifies its HMAC and the selected provider's one-time token. Turnstile responses must match the configured hostname and `tego_verify` action. For hCaptcha, the API submits the expected sitekey to its siteverify endpoint; hCaptcha documents the returned hostname as diagnostic rather than an authentication field.
+1. The bot issues a signed challenge bound to the user and a random nonce (10 minutes).
+2. The API checks the challenge HMAC and CAPTCHA, then returns a signed proof (5 minutes). Turnstile checks the hostname and `tego_verify` action; hCaptcha submits the expected sitekey, while its reported hostname is diagnostic.
+3. The bot matches the proof's user ID to the `web_app_data` sender and atomically consumes the challenge. The user then sends the original message again.
 
-Keyboard-button Mini Apps do not receive Telegram initData, so the page cannot authenticate the Telegram user directly. Instead, the bot checks that the proof's user ID matches the sender of Telegram's web_app_data service message and atomically consumes the matching local challenge. The proof expires after five minutes. A successful verification does not forward the user's earlier message; the user sends it again. If the selected provider is misconfigured or unavailable, verification fails closed.
+Keyboard-button Mini Apps have no Telegram initData, so the page cannot identify the sender directly. Missing configuration or provider failure rejects verification.
 
 ## Local development
 
-The app and its tests use TypeScript. Install with `pnpm install`, then run `pnpm dev` locally, `pnpm typecheck` for static type checks, `pnpm test` for protocol, Route Handler, and CAPTCHA widget checks, and `pnpm build` for a production build. The root page is statically prerendered, and `vercel.json` selects the Next.js framework for the existing Vercel project; `/api/config` and `/api/verify` remain dynamic Node.js handlers. Live CAPTCHA credentials and a Telegram WebView are still needed for an end-to-end production check.
+Install dependencies and start the TypeScript app:
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Check changes with `pnpm typecheck`, `pnpm test`, and `pnpm build`. A full verification check needs real CAPTCHA credentials and a Telegram WebView.
