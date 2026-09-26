@@ -3,25 +3,27 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const userIDPattern = /^[1-9][0-9]{0,15}$/;
 const noncePattern = /^[A-Za-z0-9_-]{22}$/;
 
-export function readSigningKey(value) {
+export function readSigningKey(value: unknown): Buffer {
   if (typeof value !== "string" || !/^[0-9a-fA-F]{64}$/.test(value)) {
     throw new Error("VERIFY_SIGNING_KEY must be 64 hexadecimal characters");
   }
   return Buffer.from(value, "hex");
 }
 
-function validUserID(value) {
+function validUserID(value: unknown): value is string {
   return typeof value === "string" && userIDPattern.test(value) &&
     Number.isSafeInteger(Number(value)) && Number(value) > 0;
 }
 
-function validNonce(value) {
+function validNonce(value: unknown): value is string {
   if (typeof value !== "string" || !noncePattern.test(value)) return false;
   const decoded = Buffer.from(value, "base64url");
   return decoded.length === 16 && decoded.toString("base64url") === value;
 }
 
-export function signTicket(kind, userID, expiresAt, nonce, key) {
+export type TicketKind = "c" | "p";
+
+export function signTicket(kind: TicketKind, userID: string, expiresAt: number, nonce: string, key: Buffer): string {
   if (!["c", "p"].includes(kind) || !validUserID(userID) ||
       !Number.isSafeInteger(expiresAt) || !validNonce(nonce) ||
       !Buffer.isBuffer(key) || key.length !== 32) {
@@ -32,7 +34,8 @@ export function signTicket(kind, userID, expiresAt, nonce, key) {
   return payload + "." + mac;
 }
 
-export function parseTicket(ticket, kind, key, now = Math.floor(Date.now() / 1000)) {
+export function parseTicket(ticket: unknown, kind: TicketKind, key: Buffer, now = Math.floor(Date.now() / 1000)):
+  { userID: string; expiresAt: number; nonce: string } | null {
   if (typeof ticket !== "string" || ticket.length > 256 ||
       !Buffer.isBuffer(key) || key.length !== 32) return null;
   const parts = ticket.split(".");

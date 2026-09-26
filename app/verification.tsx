@@ -3,6 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { renderCaptcha } from "../lib/captcha-widget";
+import type { CaptchaAPI, CaptchaConfig } from "../lib/captcha-widget";
+
+type TelegramWebApp = {
+  colorScheme: string;
+  ready: () => void;
+  expand: () => void;
+  sendData: (data: string) => void;
+};
+
+declare global {
+  interface Window {
+    Telegram?: { WebApp?: TelegramWebApp };
+    turnstile?: CaptchaAPI;
+    hcaptcha?: CaptchaAPI;
+    tegoHCaptchaReady?: () => void;
+  }
+}
 
 const messages = {
   en: {
@@ -39,14 +56,18 @@ const messages = {
   },
 };
 
+type Locale = keyof typeof messages;
+type Phase = "loading" | "ready" | "solved" | "sending" | "done" | "invalid" |
+  "failed" | "expired" | "unavailable" | "network";
+
 export default function Verification() {
-  const [locale, setLocale] = useState("en");
+  const [locale, setLocale] = useState<Locale>("en");
   const [scriptReady, setScriptReady] = useState(false);
-  const [phase, setPhase] = useState("loading");
+  const [phase, setPhase] = useState<Phase>("loading");
   const [token, setToken] = useState("");
-  const widgetRef = useRef(null);
-  const resetWidget = useRef(() => {});
-  const telegramRef = useRef(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const resetWidget = useRef<() => void>(() => {});
+  const telegramRef = useRef<TelegramWebApp | null>(null);
   const challengeRef = useRef("");
   const submitting = useRef(false);
   const copy = messages[locale];
@@ -60,8 +81,8 @@ export default function Verification() {
   useEffect(() => {
     if (!scriptReady) return;
     let cancelled = false;
-    let providerScript;
-    let disposeWidget = () => {};
+    let providerScript: HTMLScriptElement | undefined;
+    let disposeWidget: () => void = () => {};
     const telegram = window.Telegram?.WebApp;
     const challenge = new URLSearchParams(window.location.search).get("challenge");
     if (!telegram || !challenge || challenge.length > 256) {
@@ -79,13 +100,13 @@ export default function Verification() {
       try {
         const response = await fetch("/api/config", { cache: "no-store" });
         if (!response.ok) throw new Error("configuration unavailable");
-        const config = await response.json();
+        const config = await response.json() as CaptchaConfig;
         if (!config.siteKey || !["turnstile", "hcaptcha"].includes(config.provider)) {
           throw new Error("unsupported provider");
         }
         if (cancelled) return;
 
-        const solved = (value) => {
+        const solved = (value: string) => {
           if (cancelled) return;
           setToken(value);
           setPhase("solved");
@@ -100,11 +121,11 @@ export default function Verification() {
           setToken("");
           setPhase("failed");
         };
-        const renderWidget = (api) => {
+        const renderWidget = (api: CaptchaAPI | undefined) => {
           if (cancelled || !api || !widgetRef.current) return;
           try {
             setPhase("ready");
-            const widget = renderCaptcha(api, widgetRef.current, config, telegram.colorScheme, { solved, expired, failed });
+            const widget = renderCaptcha(api, widgetRef.current, config, telegram!.colorScheme, { solved, expired, failed });
             resetWidget.current = widget.reset;
             disposeWidget = widget.dispose;
           } catch {
@@ -160,7 +181,7 @@ export default function Verification() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challenge: challengeRef.current, token }),
       });
-      const result = await response.json();
+      const result = await response.json() as { proof?: string; code?: string };
       if (!response.ok || !result.proof) {
         failureCode = result.code || "captcha_rejected";
         throw new Error("verification rejected");
@@ -201,7 +222,7 @@ export default function Verification() {
         {copy.submit}
       </button>
       <p className="status" role="status" aria-live="polite" data-error={isError}>
-        {copy[phase] || ""}
+        {phase === "solved" ? "" : copy[phase]}
       </p>
       <p className="foot">{copy.foot}</p>
     </main>
